@@ -1,8 +1,10 @@
 package wg.core
 
+import com.sun.jna.FromNativeContext
 import com.sun.jna.Structure
 import com.sun.jna.Structure.FieldOrder
 import com.sun.jna.Pointer
+import com.sun.jna.ToNativeContext
 import com.sun.jna.ptr.ByteByReference
 import java.net.InetAddress
 import java.net.InetSocketAddress
@@ -58,14 +60,15 @@ enum class IoctlInterfaceFlags(val value: UInt) {
     REPLACE_PEERS(1u shl 3)
 }
 
-@FieldOrder("flags", "listenPort", "privateKey", "publicKey", "peersCount")
+@FieldOrder("privateKey", "publicKey")
 open class IoctlInterface : Structure() {
-    var flags: UInt = 0u
-    var listenPort: UShort = 0u
-    var privateKey = ByteArray(32)
-    var publicKey = ByteArray(32)
-    var peersCount: UInt = 0u
+    var flags: UInt = 0u            // WIREGUARD_INTERFACE_FLAG
+    var listenPort: UShort = 0u     // WORD
+    @JvmField var privateKey = ByteArray(32)  // BYTE array of length WIREGUARD_KEY_LENGTH
+    @JvmField var publicKey = ByteArray(32)   // BYTE array of length WIREGUARD_KEY_LENGTH
+    var peersCount: UInt = 0u       // DWORD
 
+    // Inner classes to represent references and values
     class ByReference : IoctlInterface(), Structure.ByReference
     class ByValue : IoctlInterface(), Structure.ByValue
 }
@@ -81,14 +84,18 @@ enum class IoctlPeerFlags(val value: UInt) {
     UPDATE_ONLY(1u shl 7)
 }
 
-@FieldOrder("flags", "reserved", "publicKey", "presharedKey", "persistentKeepalive", "endpoint", "txBytes", "rxBytes", "lastHandshake", "allowedIPsCount")
+@FieldOrder(
+    "publicKey",
+    "presharedKey",
+    "endpoint",
+)
 open class IoctlPeer : Structure() {
     var flags: UInt = 0u
     var reserved: UInt = 0u
-    var publicKey = ByteArray(32)
-    var presharedKey = ByteArray(32)
+    @JvmField var publicKey = ByteArray(32)
+    @JvmField var presharedKey = ByteArray(32)
     var persistentKeepalive: UShort = 0u
-    var endpoint = SOCKADDR_INET()
+    @JvmField var endpoint = SOCKADDR_INET()
     var txBytes: ULong = 0uL
     var rxBytes: ULong = 0uL
     var lastHandshake: ULong = 0uL
@@ -154,19 +161,37 @@ open class IoctlWgPeerConfig : Structure() {
     class ByValue : IoctlWgPeerConfig(), Structure.ByValue
 }
 
-enum class WireGuardAdapterState(val value: UInt) {
-    WIREGUARD_ADAPTER_STATE_DOWN(0u),
-    WIREGUARD_ADAPTER_STATE_UP(1u)
+enum class WireGuardAdapterState(val value: Int) {
+    WIREGUARD_ADAPTER_STATE_DOWN(0),
+    WIREGUARD_ADAPTER_STATE_UP(1)
 }
 
 enum class WireGuardLoggerLevel(val value: UInt) {
     WIREGUARD_LOG_INFO(0u),
     WIREGUARD_LOG_WARN(1u),
-    WIREGUARD_LOG_ERR(2u)
+    WIREGUARD_LOG_ERROR(2u)
 }
 
-enum class WireGuardAdapterLoggerLevel(val value: UInt) {
-    WIREGUARD_LOG_OFF(0u),
-    WIREGUARD_LOG_ON(1u),
-    WIREGUARD_LOG_ON_PREFIX(2u)
+
+// Define a custom type converter for WireGuardLoggerLevel
+class WireGuardLoggerLevelConverter : com.sun.jna.TypeConverter {
+
+    override fun fromNative(p0: Any?, p1: FromNativeContext?): Any {
+        return WireGuardLoggerLevel.values().find { it.value.toInt() == (p0 as Int) }
+            ?: throw IllegalArgumentException("Unknown value: $p0")
+    }
+
+    override fun nativeType(): Class<*> {
+        return WireGuardLoggerLevel::class.java
+    }
+
+    override fun toNative(p0: Any?, p1: ToNativeContext?): Any {
+        return (p0 as WireGuardLoggerLevel).value.toInt()
+    }
+}
+
+enum class WireGuardAdapterLoggerLevel(val value: Int) {
+    WIREGUARD_LOG_OFF(0),
+    WIREGUARD_LOG_ON(1),
+    WIREGUARD_LOG_ON_PREFIX(2)
 }

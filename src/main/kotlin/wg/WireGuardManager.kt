@@ -1,13 +1,11 @@
 package wg
 
+import com.sun.jna.Native
 import com.sun.jna.Pointer
 import com.sun.jna.platform.win32.Kernel32
-import com.sun.jna.ptr.PointerByReference
-import wg.core.WireGuardAdapterLoggerLevel
-import wg.core.WireGuardAdapterState
-import wg.core.WireguardLibrary
+import com.sun.jna.platform.win32.WinDef
+import wg.core.*
 import java.io.File
-import kotlin.math.log
 
 
 class WireGuardManager {
@@ -72,22 +70,22 @@ class WireGuardManager {
     }
 
     fun getAdapterState(onState: (Int) -> Unit) {
-        val stateRef = PointerByReference()
-        adapter?.let {
-            if (instance.WireGuardGetAdapterState(adapter!!, stateRef)) {
-                onState(stateRef.value.getInt(0))  // Assuming the state is represented by an integer
-                return
-            }
-
-            onState(CUSTOM_ERROR)
-        } ?: run {
-            onState(CUSTOM_ERROR)
-        }
+//        val stateRef = PointerByReference()
+//        adapter?.let {
+//            if (instance.WireGuardGetAdapterState(adapter!!, stateRef)) {
+//                onState(stateRef.value.getInt(0))  // Assuming the state is represented by an integer
+//                return
+//            }
+//
+//            onState(CUSTOM_ERROR)
+//        } ?: run {
+//            onState(CUSTOM_ERROR)
+//        }
     }
 
     fun setAdapterState(state: WireGuardAdapterState) {
         adapter?.let {
-            instance.WireGuardSetAdapterState(adapter!!, state)
+            instance.WireGuardSetAdapterState(adapter!!, state.value)
         } ?: kotlin.run {
 
         }
@@ -95,9 +93,34 @@ class WireGuardManager {
 
     fun setAdapterLogging(loggingLevel: WireGuardAdapterLoggerLevel): Boolean {
         adapter?.let {
-            return instance.WireGuardSetAdapterLogging(adapter!!, loggingLevel)
+            return instance.WireGuardSetAdapterLogging(adapter!!, loggingLevel.value)
         }
 
         return false
+    }
+
+    fun setLogger(logInterface: WireGuardLoggerCallback) {
+        adapter?.let {
+            instance.WireGuardSetLogger(logInterface)
+        }
+    }
+
+    fun setConfiguration(config: IoctlWireGuardConfig) {
+        adapter?.let {
+            config.write()
+
+            val result = instance.WireGuardSetConfiguration(adapter!!, config.pointer, WinDef.ULONG(config.size().toLong()))
+
+            // Check if the configuration was set successfully
+            if (!result) {
+                throw RuntimeException("Failed to set WireGuard configuration. Error code: ${Native.getLastError()}")
+            } else {
+                println("WireGuard configuration set successfully.")
+            }
+        }
+    }
+
+    fun getConfiguration() {
+
     }
 }

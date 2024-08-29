@@ -1,17 +1,15 @@
 package wg.core
 
-import com.sun.jna.Library
-import com.sun.jna.Native
-import com.sun.jna.Pointer
-import com.sun.jna.WString
+import com.sun.jna.*
 import com.sun.jna.platform.win32.Guid.GUID
 import com.sun.jna.platform.win32.WTypes.LPWSTR
 import com.sun.jna.platform.win32.WinDef
 import com.sun.jna.platform.win32.WinDef.*
 import com.sun.jna.platform.win32.WinNT.HANDLE
 import com.sun.jna.ptr.PointerByReference
+import com.sun.jna.win32.StdCallLibrary
 
-interface WireguardLibrary: Library {
+interface WireguardLibrary: StdCallLibrary {
 
     // Corresponds to createAdapter
     fun WireGuardCreateAdapter(
@@ -45,10 +43,8 @@ interface WireguardLibrary: Library {
 
 
     // Equivalent of C#'s setAdapterState function
-    fun WireGuardSetAdapterState(
-        adapter: Pointer,
-        wireGuardAdapterState: WireGuardAdapterState
-    ): Boolean
+    @Suppress("FunctionName")
+    fun WireGuardSetAdapterState(adapter: Pointer, wireGuardAdapterState: Int): Boolean
 
     // Equivalent of C#'s getAdapterState function
     fun WireGuardGetAdapterState(
@@ -62,8 +58,10 @@ interface WireguardLibrary: Library {
     // Equivalent of C#'s setAdapterLogging function
     fun WireGuardSetAdapterLogging(
         adapter: Pointer,
-        loggingLevel: WireGuardAdapterLoggerLevel
+        loggingLevel: Int
     ): Boolean
+
+    fun WireGuardSetLogger(callback: WireGuardLoggerCallback): Boolean
 
     companion object {
         val sysProperty = when (System.getProperty("os.arch")) {
@@ -75,5 +73,6 @@ interface WireguardLibrary: Library {
         }
 
         val INSTANCE: WireguardLibrary = Native.load("wg/$sysProperty/wireguard", WireguardLibrary::class.java)
+
     }
 }
