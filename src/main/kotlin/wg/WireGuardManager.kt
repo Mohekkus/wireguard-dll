@@ -1,19 +1,27 @@
 package wg
 
+import com.sun.jna.Memory
 import com.sun.jna.Native
 import com.sun.jna.Pointer
+import com.sun.jna.WString
 import com.sun.jna.platform.win32.Kernel32
 import com.sun.jna.platform.win32.WinDef
+import com.sun.jna.ptr.IntByReference
+import com.sun.jna.ptr.PointerByReference
 import wg.core.*
 import java.io.File
 
 
 class WireGuardManager {
 
+    init {
+        addEnviromentalVariable()
+    }
+
     private val instance = WireguardLibrary.INSTANCE
     companion object {
-        private const val NAME = "WG Adapter"
-        private const val TYPE = "WireGuard"
+        val NAME = WString("WG Adapter")
+        private val TYPE = WString("WireGuard")
         private const val CUSTOM_ERROR = -100
         private var adapter: Pointer? = null
     }
@@ -44,21 +52,24 @@ class WireGuardManager {
         else
             onInvalid()
     }
-    fun createAdapter(onFailed: ((String) -> Unit)? = null) {
+    fun createAdapter(
+        onSuccess: () -> Unit,
+        onFailed: ((String) -> Unit)? = null
+    ) {
         try {
             val adapterHandler = instance.WireGuardCreateAdapter(NAME, TYPE, null)
 
             if (adapterHandler != Pointer.NULL && Pointer.nativeValue(adapterHandler) != 0L) {
                 adapter = adapterHandler
+                onSuccess()
                 return
-            }
-            else {
+            } else {
                 val errorCode = Kernel32.INSTANCE.GetLastError()
                 onFailed?.invoke("Failed to create adapter. Error code: $errorCode")
             }
 
         } catch (e: Exception) {
-            onFailed?.invoke(e.message.toString())
+            onFailed?.invoke("Exception ocxcurred: ${e.message}")
         }
     }
 
@@ -70,17 +81,17 @@ class WireGuardManager {
     }
 
     fun getAdapterState(onState: (Int) -> Unit) {
-//        val stateRef = PointerByReference()
-//        adapter?.let {
-//            if (instance.WireGuardGetAdapterState(adapter!!, stateRef)) {
-//                onState(stateRef.value.getInt(0))  // Assuming the state is represented by an integer
-//                return
-//            }
-//
-//            onState(CUSTOM_ERROR)
-//        } ?: run {
-//            onState(CUSTOM_ERROR)
-//        }
+        val stateRef = PointerByReference()
+        adapter?.let {
+            if (instance.WireGuardGetAdapterState(adapter!!)) {
+                onState(stateRef.value.getInt(0))  // Assuming the state is represented by an integer
+                return
+            }
+
+            onState(CUSTOM_ERROR)
+        } ?: run {
+            onState(CUSTOM_ERROR)
+        }
     }
 
     fun setAdapterState(state: WireGuardAdapterState) {
@@ -120,7 +131,10 @@ class WireGuardManager {
         }
     }
 
-    fun getConfiguration() {
-
+    fun getConfiguration(configMemory: Memory, bytesRequired: IntByReference): Boolean {
+        adapter?.let {
+            return instance.WireGuardGetConfiguration(adapter!!, configMemory, bytesRequired)
+        }
+        return false
     }
 }

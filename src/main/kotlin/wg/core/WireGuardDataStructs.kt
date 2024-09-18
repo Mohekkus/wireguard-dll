@@ -71,6 +71,13 @@ open class IoctlInterface : Structure() {
     // Inner classes to represent references and values
     class ByReference : IoctlInterface(), Structure.ByReference
     class ByValue : IoctlInterface(), Structure.ByValue
+
+    override fun toString(): String {
+        return "IoctlInterface(flags=$flags, listenPort=$listenPort, " +
+                "privateKey=${privateKey.joinToString("") { "%02x".format(it) }}, " +
+                "publicKey=${publicKey.joinToString("") { "%02x".format(it) }}, " +
+                "peersCount=$peersCount)"
+    }
 }
 
 enum class IoctlPeerFlags(val value: UInt) {
@@ -103,10 +110,19 @@ open class IoctlPeer : Structure() {
 
     class ByReference : IoctlPeer(), Structure.ByReference
     class ByValue : IoctlPeer(), Structure.ByValue
+
+    override fun toString(): String {
+        return "IoctlPeer(flags=$flags, reserved=$reserved, " +
+                "publicKey=${publicKey.joinToString("") { "%02x".format(it) }}, " +
+                "presharedKey=${presharedKey.joinToString("") { "%02x".format(it) }}, " +
+                "persistentKeepalive=$persistentKeepalive, endpoint=$endpoint, " +
+                "txBytes=$txBytes, rxBytes=$rxBytes, lastHandshake=$lastHandshake, " +
+                "allowedIPsCount=$allowedIPsCount)"
+    }
 }
 
 @FieldOrder("si_family", "Ipv4", "Ipv6", "Padding")
-open class SOCKADDR_INET : Structure() {
+open class SOCKADDR_INET() : Structure() {
     @JvmField var si_family: Short = 0  // Corresponding to ADDRESS_FAMILY, typically AF_INET or AF_INET6
     @JvmField var Ipv4 = IN_ADDR()      // Union, for IPv4
     @JvmField var Ipv6 = IN6_ADDR()     // Union, for IPv6
@@ -114,6 +130,11 @@ open class SOCKADDR_INET : Structure() {
 
     class ByReference : SOCKADDR_INET(), Structure.ByReference
     class ByValue : SOCKADDR_INET(), Structure.ByValue
+
+    constructor(pointer: Pointer) : this() {
+        useMemory(pointer)
+        read()  // Read fields from the pointer
+    }
 }
 
 @FieldOrder("v4", "v6", "addressFamily", "cidr")
@@ -125,6 +146,10 @@ open class IoctlAllowedIP : Structure() {
 
     class ByReference : IoctlAllowedIP(), Structure.ByReference
     class ByValue : IoctlAllowedIP(), Structure.ByValue
+
+    override fun toString(): String {
+        return "IoctlAllowedIP(v4=$v4, v6=$v6, addressFamily=$addressFamily, cidr=$cidr)"
+    }
 }
 
 @FieldOrder("s_addr")
@@ -133,6 +158,10 @@ open class IN_ADDR : Structure() {
 
     class ByReference : IN_ADDR(), Structure.ByReference
     class ByValue : IN_ADDR(), Structure.ByValue
+
+    override fun toString(): String {
+        return "IN_ADDR(s_addr=${Integer.toHexString(s_addr)})"
+    }
 }
 
 @FieldOrder("Byte")
@@ -141,15 +170,28 @@ open class IN6_ADDR : Structure() {
 
     class ByReference : IN6_ADDR(), Structure.ByReference
     class ByValue : IN6_ADDR(), Structure.ByValue
+
+    override fun toString(): String {
+        return "IN6_ADDR(Byte=${Byte.joinToString("") { "%02x".format(it) }})"
+    }
 }
 
 @FieldOrder("interfaze", "wgPeerConfigs")
-open class IoctlWireGuardConfig : Structure() {
+open class IoctlWireGuardConfig() : Structure() {
     @JvmField var interfaze = IoctlInterface()
     @JvmField var wgPeerConfigs: Array<IoctlWgPeerConfig> = arrayOf()
 
     class ByReference : IoctlWireGuardConfig(), Structure.ByReference
     class ByValue : IoctlWireGuardConfig(), Structure.ByValue
+
+    constructor(pointer: Pointer) : this() {
+        useMemory(pointer)
+        read()  // Read fields from the pointer
+    }
+
+    override fun toString(): String {
+        return "IoctlWireGuardConfig(interfaze=$interfaze, wgPeerConfigs=${wgPeerConfigs.contentToString()})"
+    }
 }
 
 @FieldOrder("client", "allowedIp")
@@ -159,6 +201,10 @@ open class IoctlWgPeerConfig : Structure() {
 
     class ByReference : IoctlWgPeerConfig(), Structure.ByReference
     class ByValue : IoctlWgPeerConfig(), Structure.ByValue
+
+    override fun toString(): String {
+        return "IoctlWgPeerConfig(client=$client, allowedIp=$allowedIp)"
+    }
 }
 
 enum class WireGuardAdapterState(val value: Int) {
@@ -170,24 +216,6 @@ enum class WireGuardLoggerLevel(val value: UInt) {
     WIREGUARD_LOG_INFO(0u),
     WIREGUARD_LOG_WARN(1u),
     WIREGUARD_LOG_ERROR(2u)
-}
-
-
-// Define a custom type converter for WireGuardLoggerLevel
-class WireGuardLoggerLevelConverter : com.sun.jna.TypeConverter {
-
-    override fun fromNative(p0: Any?, p1: FromNativeContext?): Any {
-        return WireGuardLoggerLevel.values().find { it.value.toInt() == (p0 as Int) }
-            ?: throw IllegalArgumentException("Unknown value: $p0")
-    }
-
-    override fun nativeType(): Class<*> {
-        return WireGuardLoggerLevel::class.java
-    }
-
-    override fun toNative(p0: Any?, p1: ToNativeContext?): Any {
-        return (p0 as WireGuardLoggerLevel).value.toInt()
-    }
 }
 
 enum class WireGuardAdapterLoggerLevel(val value: Int) {

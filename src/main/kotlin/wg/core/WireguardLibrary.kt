@@ -6,6 +6,7 @@ import com.sun.jna.platform.win32.WTypes.LPWSTR
 import com.sun.jna.platform.win32.WinDef
 import com.sun.jna.platform.win32.WinDef.*
 import com.sun.jna.platform.win32.WinNT.HANDLE
+import com.sun.jna.ptr.IntByReference
 import com.sun.jna.ptr.PointerByReference
 import com.sun.jna.win32.StdCallLibrary
 
@@ -13,8 +14,8 @@ interface WireguardLibrary: StdCallLibrary {
 
     // Corresponds to createAdapter
     fun WireGuardCreateAdapter(
-        name: String,
-        tunnelType: String,
+        name: WString,
+        tunnelType: WString,
         requestedGUID: PointerByReference?
     ): Pointer
 
@@ -27,11 +28,10 @@ interface WireguardLibrary: StdCallLibrary {
     // Corresponds to getAdapterLUID
     fun WireGuardGetAdapterLUID(adapter: Pointer, luid: PointerByReference)
 
-    // Corresponds to getConfiguration
     fun WireGuardGetConfiguration(
-        adapter: Pointer,
-        iface: ByteArray,
-        bytes: ULONG
+        adapter: Pointer,             // The adapter handle
+        config: Pointer,              // Pointer to the configuration structure (WIREGUARD_INTERFACE)
+        bytes: IntByReference         // Pointer to the size of the config structure (DWORD*)
     ): Boolean
 
     // Corresponds to setConfiguration
@@ -49,7 +49,7 @@ interface WireguardLibrary: StdCallLibrary {
     // Equivalent of C#'s getAdapterState function
     fun WireGuardGetAdapterState(
         adapter: Pointer,
-        wireGuardAdapterState: PointerByReference // Use PointerByReference for enum value
+//        wireGuardAdapterState: PointerByReference // Use PointerByReference for enum value
     ): Boolean
 
     // Equivalent of C#'s getRunningDriverVersion function
